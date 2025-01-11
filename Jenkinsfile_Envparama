@@ -1,0 +1,61 @@
+
+Notes: Changes made to env are globally visible to all stages and steps in the current pipeline
+pipeline {
+    agent any
+    parameters {
+        choice(name: 'ENVIRONMENT', choices: ['dev', 'staging', 'prod'], description: 'Deployment Environment')
+    }
+    environment {
+        DEPLOY_ENV = "${params.ENVIRONMENT}" // Assign parameter value to an environment variable
+    }
+    stages {
+        stage('Deploy') {
+            steps {
+                echo "Deploying to ${env.DEPLOY_ENV} environment"
+            }
+        }
+    }
+}
+pipeline {
+    agent any
+    environment {
+        MY_VAR = 'InitialValue'
+    }
+    stages {
+        stage('Update Environment Variable') {
+            steps {
+                script {
+                    env.MY_VAR = 'UpdatedValue'
+                }
+                echo "MY_VAR after update: ${env.MY_VAR}"
+            }
+        }
+    }
+}
+//Dynamically add new env variable
+pipeline {
+    agent any
+    stages {
+        stage('Set Environment Variable') {
+            steps {
+                script {
+                    env.NEW_VAR = 'DynamicValue'
+                }
+                echo "NEW_VAR: ${env.NEW_VAR}"
+            }
+        }
+    }
+}
+pipeline {
+    agent any
+    stages {
+        stage('Temporarily Modify Environment Variable') {
+            steps {
+                withEnv(['TEMP_VAR=TemporaryValue']) {
+                    sh 'echo TEMP_VAR in shell: $TEMP_VAR' //TEMP_VAR available only in this block scope
+                }
+                sh 'echo TEMP_VAR after block: $TEMP_VAR' // Will not be available here
+            }
+        }
+    }
+}

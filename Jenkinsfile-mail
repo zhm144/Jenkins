@@ -1,0 +1,202 @@
+def commitAuthorEmail = sh(script: 'git log -1 --pretty=%ae', returnStdout: true).trim()
+def fallbackEmail = 'defaultdeveloper@example.com'
+
+emailext (
+    subject: "Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+    body: """
+        Hi ${commitAuthor},
+
+        The Jenkins job ${env.JOB_NAME} #${env.BUILD_NUMBER} has failed.
+
+        Commit information:
+        Author: ${commitAuthor}
+        Commit: ${sh(script: 'git log -1 --pretty=%h', returnStdout: true).trim()}
+
+        Please check the job details and fix the issue.
+
+        Regards,
+        Jenkins
+    """,
+    to: commitAuthorEmail ?: fallbackEmail
+)
+
+pipeline {
+    agent any
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Build') {
+            steps {
+                script {
+                    try {
+                        echo "Building the project..."
+                        // Simulate a failure
+                        sh 'exit 1'
+                    } catch (Exception e) {
+                        // Catch failure and send email to commit author
+                        def commitAuthor = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
+                        echo "Sending email to ${commitAuthor}"
+                        
+                        emailext (
+                            subject: "Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                            body: """
+                                Hi ${commitAuthor},
+
+                                The Jenkins job ${env.JOB_NAME} #${env.BUILD_NUMBER} has failed.
+
+                                Commit information:
+                                Author: ${commitAuthor}
+                                Commit: ${sh(script: 'git log -1 --pretty=%h', returnStdout: true).trim()}
+
+                                Please check the job details and fix the issue.
+
+                                Regards,
+                                Jenkins
+                            """,
+                            to: "${commitAuthor}@example.com"  // Assuming commit author's email is known
+                        )
+                    }
+                }
+            }
+        }
+    }
+    post {
+        failure {
+            echo 'Build failed!'
+            // Additional failure steps (optional)
+        }
+    }
+}
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                sh 'exit 1'  // Simulate failure
+            }
+        }
+    }
+    post {
+        always {
+            echo 'This will always run'
+        }
+        success {
+            echo 'Build was successful!'
+        }
+        failure {
+            echo 'Build failed!'
+            // Send an email on failure
+            emailext(
+                subject: "Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "The job ${env.JOB_NAME} #${env.BUILD_NUMBER} failed.",
+                to: 'dev-team@example.com'
+            )
+        }
+    }
+}
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    // Simulate a build failure for testing purposes
+                    sh 'exit 1'  // Simulate failure
+                }
+            }
+        }
+    }
+    post {
+        failure {
+            echo "Build failed, sending notifications to multiple teams..."
+
+            // Email groups for multiple teams
+            def team1Email = 'team1@example.com'
+            def team2Email = 'team2@example.com'
+            def team3Email = 'team3@example.com'
+
+            // List of team emails
+            def recipients = "${team1Email}, ${team2Email}, ${team3Email}"
+
+            emailext(
+                subject: "Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                    The Jenkins job ${env.JOB_NAME} #${env.BUILD_NUMBER} has failed.
+
+                    Please check the build logs and address the issue.
+
+                    Job Details:
+                    - Job Name: ${env.JOB_NAME}
+                    - Build Number: ${env.BUILD_NUMBER}
+                    - Build URL: ${env.BUILD_URL}
+
+                    Regards,
+                    Jenkins
+                """,
+                to: recipients  // Send email to multiple teams
+            )
+        }
+    }
+}
+
+pipeline {
+    agent any
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Build') {
+            steps {
+                script {
+                    // Simulate build failure for demonstration purposes
+                    sh 'exit 1'  // This line simulates a failure in the build
+                }
+            }
+        }
+    }
+    post {
+        failure {
+            echo "Build failed, notifying developers between two commits..."
+
+            // Get the two commit hashes, for example from parameters or variables
+            def firstCommit = 'commit_hash_1'  // Replace with actual first commit hash (e.g., from build parameters)
+            def secondCommit = 'commit_hash_2' // Replace with actual second commit hash (e.g., from build parameters)
+
+            // Use git log to get the list of commit authors between the two commits
+            def commitAuthors = sh(script: """
+                git log --pretty=format:'%an <%ae>' ${firstCommit}..${secondCommit}
+            """, returnStdout: true).trim().split("\n")
+
+            // Join the commit authors to create the recipient list (removing duplicates)
+            def recipients = commitAuthors.unique().join(',')
+
+            // Send an email to the list of developers
+            emailext(
+                subject: "Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                    The Jenkins job ${env.JOB_NAME} #${env.BUILD_NUMBER} has failed.
+
+                    The following developers contributed between commits ${firstCommit} and ${secondCommit}:
+                    ${commitAuthors.join("\n")}
+
+                    Please investigate the failure and take necessary actions.
+
+                    Job Details:
+                    - Job Name: ${env.JOB_NAME}
+                    - Build Number: ${env.BUILD_NUMBER}
+                    - Build URL: ${env.BUILD_URL}
+
+                    Regards,
+                    Jenkins
+                """,
+                to: recipients  // Send the email to the commit authors
+            )
+        }
+    }
+}
+

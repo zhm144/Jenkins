@@ -1,0 +1,104 @@
+pipeline {
+    agent any
+    stages {
+        stage('Retry with Catch') {
+            steps {
+                script {
+                    try {
+                        retry(3) {
+                            echo "Attempting risky operation..."
+                            sh 'exit 1' // Simulate a failure
+                        }
+                    } catch (Exception e) {
+                        echo "Operation failed after retries: ${e.getMessage()}"
+                    }
+                }
+            }
+        }
+    }
+}
+
+pipeline {
+    agent any
+    stages {
+        stage('Retry and Notify') {
+            steps {
+                script {
+                    try {
+                        retry(2) {
+                            echo "Running risky command..."
+                            sh 'exit 1' // Simulate a failure
+                        }
+                    } catch (Exception e) {
+                        echo "Failed after retries. Sending notification."
+                        // Example: Send email or Slack notification
+                        emailext(
+                            subject: 'Build Failure',
+                            body: "The build failed after retries. Error: ${e.getMessage()}",
+                            recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+pipeline {
+    agent any
+    stages {
+        stage('Retry with Conditional Catch') {
+            steps {
+                script {
+                    try {
+                        retry(3) {
+                            echo "Attempting risky operation..."
+                            def result = sh(script: 'exit 1', returnStatus: true) // Simulate a failure
+                            if (result != 0) {
+                                error "Command failed with status: ${result}"
+                            }
+                        }
+                    } catch (Exception e) {
+                        echo "Retries failed. Handling specific error: ${e.getMessage()}"
+                        // Perform specific actions for the error
+                    }
+                }
+            }
+        }
+    }
+}
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    // Simulating a build failure
+                    sh 'exit 1'  // Simulate a failure in this stage
+                }
+            }
+            post {
+                success {
+                    echo 'Build stage was successful.'
+                }
+                failure {
+                    echo 'Build stage failed.'
+                    // Take some action here, like sending notifications
+                }
+                always {
+                    echo 'This always runs after the Build stage.'
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo 'Deploying application...'
+            }
+        }
+    }
+    post {
+        always {
+            echo "Pipeline execution complete."
+        }
+    }
+}
+

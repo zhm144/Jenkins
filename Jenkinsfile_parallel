@@ -1,0 +1,110 @@
+pipeline {
+    agent any
+    stages {
+        stage('Test in Multiple Environments') {
+            matrix {
+                axes {
+                    axis {
+                        name 'OS'
+                        values 'Linux', 'Windows', 'Mac'
+                    }
+                    axis {
+                        name 'Browser'
+                        values 'Chrome', 'Firefox', 'Edge'
+                    }
+                }
+                stages {
+                    stage('Run Tests') {
+                        steps {
+                            echo "Running tests on ${OS} with ${Browser}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Building the application...'
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+            }
+        }
+        stage('Parallel Stage') {
+            parallel {
+                stage('Test on Linux') {
+                    steps {
+                        echo 'Running tests on Linux'
+                    }
+                }
+                stage('Test on Windows') {
+                    steps {
+                        echo 'Running tests on Windows'
+                    }
+                }
+                stage('Test on Mac') {
+                    steps {
+                        echo 'Running tests on Mac'
+                    }
+                }
+            }
+        }
+    }
+}
+
+pipeline {
+    agent any
+    stages {
+        stage('Parallel Stage') {
+            parallel failFast: false, {
+                stage('Test on Linux') {
+                    steps {
+                        echo 'Running tests on Linux'
+                        // Simulating failure
+                        error('Test failed on Linux')
+                    }
+                }
+                stage('Test on Windows') {
+                    steps {
+                        echo 'Running tests on Windows'
+                    }
+                }
+                stage('Test on Mac') {
+                    steps {
+                        echo 'Running tests on Mac'
+                    }
+                }
+            }
+        }
+    }
+}
+pipeline {
+    agent any
+    stages {
+        stage('Parallel Tasks') {
+            parallel {
+                stage('Task 1') {
+                    steps {
+                        catchError(buildResult: 'FAILURE', stageResult: 'UNSTABLE') {
+                            echo 'Running Task 1'
+                            error 'Failing Task 1'
+                        }
+                    }
+                }
+                stage('Task 2') {
+                    steps {
+                        echo 'Running Task 2'
+                    }
+                }
+            }
+        }
+    }
+}

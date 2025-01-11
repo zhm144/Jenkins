@@ -1,0 +1,80 @@
+#if-else blocks must be wrapped inside script block beacsue it is groovy script feature
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    if (fileExists('Dockerfile')) {
+                        echo "Dockerfile found, proceeding with Docker build."
+                        sh 'docker build -t my-image .'
+                    } else {
+                        echo "Dockerfile not found, skipping Docker build."
+                    }
+                }
+            }
+        }
+    }
+}
+pipeline {
+    agent any
+    stages {
+        stage('Prepare Environment') {
+            steps {
+                script {
+                    def configFile = 'config.yaml'
+                    if (fileExists(configFile)) {
+                        echo "Using existing configuration file."
+                        sh "cat ${configFile}"
+                    } else {
+                        echo "Configuration file not found. Creating a default one."
+                        writeFile file: configFile, text: "defaultConfig: true"
+                    }
+                }
+            }
+        }
+    }
+}
+pipeline {
+    agent any
+    environment {
+        FILE_NAME = "dutops.py"
+        FOLDER = "/root/zhm/"
+        FILE_LOCATION = $FOLDER+$FILENAME
+    }
+    stages {
+        stage('Build') {
+            steps {
+                echo "Running Stage Build"
+                script {
+                    def file = $FILE_NAME
+                    if fileExists($FILE_LOCATION) {
+                        echo "File Found"
+                    } else {
+                        writeFile file: file, text: "Default Config"
+                    }
+                }
+            }
+        }
+    }
+}
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                echo "Building project..."
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs(
+                deleteDirs: true,                  // Ensure all directories are removed
+                disableDeferredWipeout: true,     // Perform immediate cleanup
+                patterns: [[pattern: '*.log', type: 'EXCLUDE']] // Exclude log files
+            )
+        }
+    }
+}
+

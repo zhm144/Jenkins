@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+    environment {
+        STASH_DIR = "/etc/user"
+        UNSTASH_DIR = "/home/zhm"
+    }
+    stages {
+        stage('Build') {
+            agent {
+                label 'linux'
+            }
+            steps {
+                echo "Executing Build stage"
+                sh 'python build_all.py'
+                stash name: 'artifacts' includes: 'out/target/*.dtsi', 'out/target/*.img', excludes: '*.xml'
+            } 
+        }
+        parallel {
+            stage('Test') {
+                agent {
+                    label ('test && linux')
+                }
+                steps {
+                    echo "Executing Test stage"
+                    unstash 'artifacts'
+                    sh 'python test_all.py'
+                }
+            }
+            stage ('Sign') {
+                agent {
+                    label ('sign && linux')
+                }
+                steps {
+                    echo "Executing Sign stage"
+                    unstash 'artifacts'
+                    sh 'sign_all.py'
+                }
+            }
+        }
+        
+    }
+}
